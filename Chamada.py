@@ -25,6 +25,8 @@ with open('listaChamada.csv', 'r') as f:
         # se não tiver hora de saida na lista
         if entrada[-2].strip() != '-':
             listaSaiu.append(entrada[0])
+
+
         listaNomes.append(entrada[0])
         if entrada[-1].strip() != '-' and entrada[-1].strip() != 'status':
             status = entrada[-1].strip()
