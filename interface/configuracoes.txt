@@ -1,0 +1,3 @@
+hora_entrada = 19:30:00
+hora_saida = 21:40:00
+tolerancia = 15
