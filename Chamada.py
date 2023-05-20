@@ -4,12 +4,37 @@ import face_recognition
 import os
 import pandas as pd
 from datetime import datetime, timedelta
+import mysql.connector
+from flask import Flask, jsonify, request
 
 path = 'imagensChamada'
 images = []
 nomes = []
 lista = os.listdir(path)
 listaStatus = []
+
+    
+df = pd.read_csv(r'C:\Users\luisw\OneDrive\Área de Trabalho\TCC\pyFaceRec\listaChamada.csv')
+try:
+    connection = mysql.connector.connect(host='localhost',
+                                         database='rest-api',
+                                         user='root',
+                                         password='1234')
+    if connection.is_connected():
+        db_Info = connection.get_server_info()
+        print("Conectado ao servidor MySQL: versão", db_Info)
+except Error as e:
+    print("Erro ao conectar ao MySQL", e)
+cursor = connection.cursor()
+for index, row in df.iterrows():
+    sql = "INSERT INTO chamadaAlunos (nome, entrada, saida, status) VALUES (%s, %s, %s, %s)"
+    val = (row['nome'], row['entrada'], row['saida'], row['status'])
+    cursor.execute(sql, val)
+    connection.commit()
+print(cursor.rowcount, "registros inseridos com sucesso.")
+cursor.close()
+connection.close()
+print("Conexão com o MySQL encerrada.")
 
 #cria lista com os nomes que já estão na chamada e verifica quem já saiu
 with open('listaChamada.csv', 'r') as f:
@@ -233,6 +258,7 @@ while count < 1000:
             desenhar_rosto(img, faceLoc)
             MarcarPresenca(name)
             count += 1
+            
 
     cv2.imshow('Webcam', img)
     cv2.waitKey(1)
