@@ -13,7 +13,7 @@ nomes = []
 lista = os.listdir(path)
 listaStatus = []
 
-    
+    """"
 df = pd.read_csv(r'C:\Users\luisw\OneDrive\Área de Trabalho\TCC\pyFaceRec\listaChamada.csv')
 try:
     connection = mysql.connector.connect(host='localhost',
@@ -35,7 +35,7 @@ print(cursor.rowcount, "registros inseridos com sucesso.")
 cursor.close()
 connection.close()
 print("Conexão com o MySQL encerrada.")
-
+"""
 #cria lista com os nomes que já estão na chamada e verifica quem já saiu
 with open('listaChamada.csv', 'r') as f:
 
