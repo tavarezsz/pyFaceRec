@@ -14,7 +14,7 @@ lista = os.listdir(path)
 listaStatus = []
 
 """"
-df = pd.read_csv(r'C:\Users\luisw\OneDrive\Área de Trabalho\TCC\pyFaceRec\listaChamada.csv')
+df = pd.read_csv("C:\\Users\\luisw\\OneDrive\\Área de Trabalho\\TCC\\pyFaceRec\\listaChamada.csv")
 try:
     connection = mysql.connector.connect(host='localhost',
                                          database='rest-api',
