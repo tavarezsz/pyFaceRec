@@ -4,8 +4,9 @@ import face_recognition
 import os
 import pandas as pd
 from datetime import datetime, timedelta
-import mysql.connector
+# import mysql.connector
 from flask import Flask, jsonify, request
+import utils
 
 path = 'imagensChamada'
 images = []
@@ -234,6 +235,8 @@ count = 0
 nomeAtt = ''
 while count < 1000:
 
+    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+
     sucesso, img = cam.read()
     # inverte a camera
     img = cv2.flip(img, 1)
@@ -244,7 +247,10 @@ while count < 1000:
     facesFrameAtt = face_recognition.face_locations(imgS)
     encodesFrameAtt = face_recognition.face_encodings(imgS, facesFrameAtt)
 
-    for encodeFace, faceLoc in zip(encodesFrameAtt, facesFrameAtt):
+    mtnome = utils.find_match(nomes, encodeListConhecido, imgS)
+    print(mtnome)
+
+    '''for encodeFace, faceLoc in zip(encodesFrameAtt, facesFrameAtt):
         matches = face_recognition.compare_faces(encodeListConhecido, encodeFace)
         faceDis = face_recognition.face_distance(encodeListConhecido, encodeFace)
         print(faceDis)
@@ -255,10 +261,10 @@ while count < 1000:
             name = nomes[matchIndex].upper()
             nomeAtt = nomes[matchIndex].upper()
             y1, x2, y2, x1 = faceLoc
-            desenhar_rosto(img, faceLoc)
+            #desenhar_rosto(img, faceLoc)
+
             MarcarPresenca(name)
-            count += 1
-            
+            count += 1'''
 
     cv2.imshow('Webcam', img)
     cv2.waitKey(1)
