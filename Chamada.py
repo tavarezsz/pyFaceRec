@@ -12,7 +12,7 @@ path = 'imagensChamada'
 images = []
 nomes = []
 lista = os.listdir(path)
-listaStatus = []
+
 
 """"
 df = pd.read_csv("C:\\Users\\luisw\\OneDrive\\Área de Trabalho\\TCC\\pyFaceRec\\listaChamada.csv")
@@ -39,7 +39,7 @@ print("Conexão com o MySQL encerrada.")
 """
 #cria lista com os nomes que já estão na chamada e verifica quem já saiu
 with open('listaChamada.csv', 'r') as f:
-
+    listaStatus = []
     listaChamada = f.readlines()
     listaNomes = []
     listaSaiu = []
@@ -103,24 +103,6 @@ hr_atraso = entrada + timedelta(minutes=tolerancia)
 # fechamento = fechamento.time()
 entrada = entrada.time()
 saida = saida.time()
-
-
-def desenhar_rosto(frame, local):
-    """
-    :param frame: frame atual da camera
-    :param local: coordenadas do rosto
-    :return:
-    """
-
-    top, right, bottom, left = local
-    top, right, bottom, left = top*2, right*2, bottom*2, left*2
-
-    cor = (204, 204, 0)
-
-    cv2.rectangle(frame, (left, top), (right, bottom), cor, 2)
-    cv2.rectangle(frame, (left, bottom - 35), (right, bottom), cor, cv2.FILLED)
-    cv2.putText(img, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
-
 
 def AtualizarStatus(nome):
 
@@ -202,9 +184,9 @@ def MarcarPresenca(nome):
             listaSaiu.append(nome)
             presenca[1] += 1
 
-            # econtra a pessoa atula na listaStatus, para evitar duplicados
+            # econtra a pessoa atual na listaStatus, para evitar duplicados
             for item in listaStatus:
-                if name in item[0]:
+                if nome in item[0]:
                     listaStatus[listaStatus.index(item)][1] = presenca[1]
                 else:
                     listaStatus.append(presenca)
@@ -220,9 +202,9 @@ def findEncoding(images):
 
     encodeList = []
     # converte todass as imagens da lista pra RGB
-    for img in images:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        encode = face_recognition.face_encodings(img)[0]
+    for image in images:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        encode = face_recognition.face_encodings(image)[0]
         encodeList.append(encode)
     return encodeList
 
@@ -233,44 +215,36 @@ encodeListConhecido = findEncoding(images)
 cam = cv2.VideoCapture(0)
 count = 0
 nomeAtt = ''
-while count < 1000:
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+# lista de todos os rostos que a camera detectar dentro do loop
+rostos = []
+while True:
 
-    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-
-    sucesso, img = cam.read()
+    _, img = cam.read()
     # inverte a camera
     img = cv2.flip(img, 1)
-    # diminui o tamanho da imagem para agilizar
-    imgS = cv2.resize(img, (0, 0), None, 0.5, 0.5)
-    imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
 
-    facesFrameAtt = face_recognition.face_locations(imgS)
-    encodesFrameAtt = face_recognition.face_encodings(imgS, facesFrameAtt)
+    # diminui a imagem para 1/4 do tamanho pra agilizar o processo
+    imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)
 
-    mtnome = utils.find_match(nomes, encodeListConhecido, imgS)
-    print(mtnome)
-
-    '''for encodeFace, faceLoc in zip(encodesFrameAtt, facesFrameAtt):
-        matches = face_recognition.compare_faces(encodeListConhecido, encodeFace)
-        faceDis = face_recognition.face_distance(encodeListConhecido, encodeFace)
-        print(faceDis)
-        matchIndex = np.argmin(faceDis)
-
-        # Desenha o retangulo no rosto se o rosto bater com algum da lista
-        if matches[matchIndex]:
-            name = nomes[matchIndex].upper()
-            nomeAtt = nomes[matchIndex].upper()
-            y1, x2, y2, x1 = faceLoc
-            #desenhar_rosto(img, faceLoc)
-
-            MarcarPresenca(name)
-            count += 1'''
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    # Desenha o retangulo no rosto
+    for (x, y, w, h) in faces:
+        cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
     cv2.imshow('Webcam', img)
     cv2.waitKey(1)
 
-print(nomeAtt)
-#teste = cv2.imread('imagensChamada/eduardo.jpg')
-#testeS = cv2.resize(teste, (0, 0), None, 0.5, 0.5)
+    mtnome = utils.find_match(nomes, encodeListConhecido, imgS)
+    rostos.append(mtnome)
+    # se o mesmo rosto for identificado 5 vezes quebra o loop
+    if rostos.count(mtnome) > 4 and mtnome is not None:
+        break
 
-#cv2.imshow('image', testeS)
+
+index_aluno = listaNomes.index(mtnome)
+# carrega a imagem de referencia do aluno atual
+img_reconhecida = cv2.imread(f"imagensChamada/{mtnome}.jpg")
+cv2.imshow('Confirmação', img_reconhecida)
+cv2.waitKey(5000)
