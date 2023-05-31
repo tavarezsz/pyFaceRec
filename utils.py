@@ -8,7 +8,7 @@ def find_match(name_list, encode_list, img):
         Encontra o rosto atual na lista de chamada
     :param name_list: lista com todos os nomes da chamada
     :param encode_list: lista das fotos dos alunos convertidas em array
-    :param img: frame atual da camera
+    :param img: frame atual da camera, de preferencia reduzir o tamanho para 1/4 do original
     :return: retorna o nome do aluno no frame atual
     """
     match = 'desconhecido'
@@ -24,7 +24,7 @@ def find_match(name_list, encode_list, img):
 
         if matches[matchIndex]:
             match = name_list[matchIndex].upper()
-
+        # se o mesmo rosto for identificado 4 vezes quebra o loop
         return match
 
 
@@ -33,7 +33,7 @@ def load_configs():
     Carrega as configurações de horário
     :return: retorna hora de entrada e saida em formato datetime, assim como a tolerancia em minutos
     """
-    with open("interface/configuracoes.txt", "r") as file:
+    with open("configuracoes.txt", "r") as file:
         lines = [line.rstrip() for line in file]
 
         # pega só o valor numérico de cada linha
@@ -66,7 +66,7 @@ def AtualizarStatus(nome, listaNomes, listaStatus):
     :return:
     """
 
-    pds = pd.read_csv("listaChamada.csv")
+    pds = pd.read_csv("../listaChamada.csv")
     nome_index = listaNomes.index(nome) - 1
     status = listaStatus[nome_index]
     msg = 'ausente'
@@ -77,10 +77,11 @@ def AtualizarStatus(nome, listaNomes, listaStatus):
     elif status[1] == 3:
         msg = 'presente'
 
-    with open('listaChamada.csv', 'a') as file:
+    with open('../listaChamada.csv', 'a') as file:
         pds.loc[nome_index, 'status'] = msg
-        pds.to_csv("listaChamada.csv", index=False)
+        pds.to_csv("../listaChamada.csv", index=False)
     file.close()
+
 
 def fecharChamada(listaNomes, alunos):
     """
@@ -91,7 +92,7 @@ def fecharChamada(listaNomes, alunos):
     """
     for nome in alunos:
         if nome not in listaNomes:
-            with open("listaChamada.csv", 'a') as file:
+            with open("../listaChamada.csv", 'a') as file:
                 file.writelines(f'\n{nome}, - , - ,ausente')
             file.close()
 def findEncoding(images):
@@ -102,7 +103,6 @@ def findEncoding(images):
     """
 
     encodeList = []
-    # converte todass as imagens da lista pra RGB
     for image in images:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         encode = face_recognition.face_encodings(image)[0]
@@ -118,7 +118,7 @@ def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus):
     :return:
     """
     # carrega a chamada em obj pandas para editar
-    chamadapd = pd.read_csv("listaChamada.csv")
+    chamadapd = pd.read_csv("../listaChamada.csv")
     # acha o index do nome atual na lista, subtrai 1 por causa da linha inicial
 
     entrada, saida, hr_atraso = load_configs()
@@ -126,7 +126,7 @@ def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus):
     n = datetime.now().time()
     presenca = []
 
-    with open('listaChamada.csv', 'a') as file:
+    with open('../listaChamada.csv', 'a') as file:
         if nome not in listaNomes:
 
             presenca = [nome, 0]
@@ -156,7 +156,7 @@ def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus):
 
             # adiciona o hr de saida na coluna saida com pandas
             chamadapd.loc[nome_index, 'saida'] = dtString
-            chamadapd.to_csv("listaChamada.csv", index=False)
+            chamadapd.to_csv("../listaChamada.csv", index=False)
             listaSaiu.append(nome)
             presenca[1] += 1
 
@@ -168,3 +168,38 @@ def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus):
                     listaStatus.append(presenca)
         file.close()
         AtualizarStatus(nome, listaNomes, listaStatus)
+
+
+def ler_chamada():
+    """
+    le o arquivo de chamada e organiza as informações em listas
+    :return:
+    """
+
+    with open('..\listaChamada.csv', 'r') as f:
+        listaStatus = []
+        listaChamada = f.readlines()
+        listaNomes = []
+        listaSaiu = []
+        # preenche as lsitas de acordo com o estado atual da chamada
+        # garante que se o app for parado a lista de chamada não reinicie
+        for line in listaChamada:
+            # separa cada ',' em colunas
+            entrada = line.split(',')
+            # se não tiver hora de saida na lista
+            if entrada[-2].strip() != '-':
+                listaSaiu.append(entrada[0])
+
+            listaNomes.append(entrada[0])
+            if entrada[-1].strip() != '-' and entrada[-1].strip() != 'status':
+                status = entrada[-1].strip()
+                if status == 'presente(atraso)':
+                    listaStatus.append([entrada[0], 1])
+                elif status == 'presente(parcial)':
+                    listaStatus.append([entrada[0], 2])
+                elif status == 'presente':
+                    listaStatus.append([entrada[0], 3])
+                else:
+                    listaStatus.append([entrada[0], 0])
+        f.close()
+    return listaStatus, listaNomes, listaSaiu
