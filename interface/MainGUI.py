@@ -1,14 +1,15 @@
 from tkinter import messagebox
+import tkinter
 from datetime import datetime, timedelta
 import cv2
 import face_recognition
 from PIL import Image, ImageTk, ImageDraw
-import PIL
 import customtkinter as ck
+from utils import *
+import os
 
 ck.set_appearance_mode("Dark")
 ck.set_default_color_theme("blue")
-
 class MainPage:
     def __init__(self, master):
         self.master = master
@@ -199,66 +200,85 @@ class PagCofigs:
         if messagebox.askyesno(title="Sair?", message="Tem certeza que deseja sair?"):
             self.master.destroy()
 
+
 class PagIniciar:
     def __init__(self, master):
         self.master = master
         master.title("FaceRecon")
         master.geometry("800x500")
 
-        vid = cv2.VideoCapture(0)
-
         #bind esq para sair
         master.bind('<Escape>', lambda e: master.quit())
 
         # Create a label and display it on app
-        lbl_camera = ck.CTkLabel(master, text='')
+        lbl_camera = tkinter.Label(master, text='')
         lbl_camera.pack()
+        face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+        vid = cv2.VideoCapture(0)
+        pessoas = []
 
         def open_camera():
-            # Capture the video frame by frame
-            while True:
-                _, img = vid.read()
+            # converte o último frame em imagem
+            cv2image = cv2.cvtColor(vid.read()[1], cv2.COLOR_BGR2RGB)
+            cv2image = cv2.flip(cv2image, 1)
+            gray = cv2.cvtColor(cv2image, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
 
-                # Convert image from one color space to other
-                img = cv2.flip(img, 1)
-                # diminui o tamanho da imagem para agilizar
-                imgS = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                face_locations = face_recognition.face_locations(imgS)
+            # diminui a imagem para 1/4 para agilizar o processo
+            imgS = cv2.resize(cv2image, (0, 0), None, 0.25, 0.25)
 
-                # Captura o ultimo frame e transforma em uma imagem
-                pil_image = Image.fromarray(imgS)
+            for (x, y, w, h) in faces:
+                cv2.rectangle(cv2image, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-                top, right, bottom, left = face_locations
+            img = Image.fromarray(cv2image)
+            # conversão de imagem
+            imgtk = ImageTk.PhotoImage(image=img)
+            lbl_camera.imgtk = imgtk
+            lbl_camera.configure(image=imgtk)
 
 
-                for face_location in face_locations:
-                    # Print the location of each face in this image. Each face is a list of co-ordinates in (top, right, bottom, left) order.
-                    top, right, bottom, left = face_location
-                    print(
-                        "A face is located at pixel location Top: {}, Left: {}, Bottom: {}, Right: {}".format(top, left,
-                                                                                                              bottom,
-                                                                                                              right))
+            # tenta encontrar o rosto atual na lista de encodes da chamada
+            mtnome = find_match(nomes, encodelistConhecido, imgS)
 
-                    # Let's draw a box around the face
-                    draw = PIL.ImageDraw.Draw(pil_image)
-                    draw.rectangle([left, top, right, bottom], outline="red")
+            if mtnome is not None:
+                pessoas.append(mtnome)
 
-                photo_image = ImageTk.PhotoImage(image=pil_image)
-                # Display the image on screen
-                #pil_image.show()
+            if pessoas.count(mtnome) > 3 and mtnome is not None:
+                MarcarPresenca(mtnome, listaNomes, listaSaiu, listaStatus)
+                img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
+                cv2.imshow('Confirmação', img_reconhecida)
+                # após identificar uma pessoa com sucesso reinicia a lista de rostos
+                pessoas.clear()
 
-                # Displaying photoimage in the label
-                lbl_camera.photo_image = photo_image
 
-                lbl_camera.configure(image=photo_image)
+            # repete após 20 frames
+            lbl_camera.after(5, open_camera)
 
-                # repete a cada 10 segundos
-                lbl_camera.after(10, open_camera)
+        btn_iniciar = ck.CTkButton(master, text="Iniciar", command=open_camera)
+        btn_iniciar.pack()
+        btn_parar = ck.CTkButton(master, text='Parar')
+        btn_parar.pack()
 
-        # Create a button to open the camera in GUI app
-        button1 = ck.CTkButton(master, text="Open Camera", command=open_camera)
-        button1.pack()
 
+path = '..\imagensChamada'
+images = []
+nomes = []
+lista = os.listdir(path)
+
+# ler cada imagem da lista
+for im in lista:
+    imgAtual = cv2.imread(f'{path}/{im}')
+    images.append(imgAtual)
+    # adiciona o nome da imagem sem o .jpeg
+    nomes.append(os.path.splitext(im)[0])
+print(nomes)
+
+listaStatus, listaNomes, listaSaiu = ler_chamada()
+
+hr_entrada, hr_saida, hr_atraso = load_configs()
+
+# cria uma lista de encodes das imagens da chamada
+encodelistConhecido = findEncoding(images)
 
 root = ck.CTk()
 app = MainPage(root)

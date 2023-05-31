@@ -5,6 +5,7 @@ import os
 import pandas as pd
 from datetime import datetime, timedelta
 # import mysql.connector
+from AntiSpoofing.test import test
 from flask import Flask, jsonify, request
 import utils
 
@@ -14,29 +15,6 @@ nomes = []
 lista = os.listdir(path)
 
 
-""""
-df = pd.read_csv("C:\\Users\\luisw\\OneDrive\\Área de Trabalho\\TCC\\pyFaceRec\\listaChamada.csv")
-try:
-    connection = mysql.connector.connect(host='localhost',
-                                         database='rest-api',
-                                         user='root',
-                                         password='1234')
-    if connection.is_connected():
-        db_Info = connection.get_server_info()
-        print("Conectado ao servidor MySQL: versão", db_Info)
-except Error as e:
-    print("Erro ao conectar ao MySQL", e)
-cursor = connection.cursor()
-for index, row in df.iterrows():
-    sql = "INSERT INTO chamadaAlunos (nome, entrada, saida, status) VALUES (%s, %s, %s, %s)"
-    val = (row['nome'], row['entrada'], row['saida'], row['status'])
-    cursor.execute(sql, val)
-    connection.commit()
-print(cursor.rowcount, "registros inseridos com sucesso.")
-cursor.close()
-connection.close()
-print("Conexão com o MySQL encerrada.")
-"""
 #cria lista com os nomes que já estão na chamada e verifica quem já saiu
 with open('listaChamada.csv', 'r') as f:
     listaStatus = []
@@ -214,7 +192,6 @@ encodeListConhecido = findEncoding(images)
 
 cam = cv2.VideoCapture(0)
 count = 0
-nomeAtt = ''
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 # lista de todos os rostos que a camera detectar dentro do loop
 rostos = []
@@ -223,6 +200,8 @@ while True:
     _, img = cam.read()
     # inverte a camera
     img = cv2.flip(img, 1)
+    # True se o rosto for "real"
+    face_check = False
 
     # diminui a imagem para 1/4 do tamanho pra agilizar o processo
     imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)
@@ -231,15 +210,28 @@ while True:
     faces = face_cascade.detectMultiScale(gray, 1.1, 4)
     # Desenha o retangulo no rosto
     for (x, y, w, h) in faces:
-        cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        # se for um rosto real desenha o retangulo verde
+        if test(imgS, 'AntiSpoofing/resources/anti_spoof_models', 0) == 1:
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            print('real')
+            face_check = True
+
+        else:
+            # se não for um rosto real desnha o retangulo vermelho
+            print('fake')
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
     cv2.imshow('Webcam', img)
     cv2.waitKey(1)
 
     mtnome = utils.find_match(nomes, encodeListConhecido, imgS)
-    rostos.append(mtnome)
+
+    # se o rosto atual for real acidiona na lista
+    if face_check:
+        rostos.append(mtnome)
     # se o mesmo rosto for identificado 5 vezes quebra o loop
-    if rostos.count(mtnome) > 4 and mtnome is not None:
+    if rostos.count(mtnome) > 1000  and mtnome is not None:
+        MarcarPresenca(mtnome)
         break
 
 
