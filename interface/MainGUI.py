@@ -1,3 +1,5 @@
+import time
+import cProfile, pstats
 from tkinter import messagebox
 import tkinter
 from datetime import datetime, timedelta
@@ -6,10 +8,13 @@ import face_recognition
 from PIL import Image, ImageTk, ImageDraw
 import customtkinter as ck
 from utils import *
+from time import sleep
 import os
 
 ck.set_appearance_mode("Dark")
 ck.set_default_color_theme("blue")
+
+
 class MainPage:
     def __init__(self, master):
         self.master = master
@@ -66,8 +71,9 @@ class MainPage:
 
 class PagCofigs:
     def __init__(self, master):
+        self.seguranca = tkinter.IntVar()
         self.master = master
-        self.senha = 'root'
+
         fonte = 'Arial'
         master.title("Configurações")
         master.geometry("600x350")
@@ -108,21 +114,50 @@ class PagCofigs:
                                                                          'atraso', pady=10)
         self.lblToleranciaDisc.place(x=5, y=200)
 
-        self.rdSeguranca = ck.CTkRadioButton(master, font=('Arial', 16), text='Modo de segurança')
+        self.rdSeguranca = ck.CTkCheckBox(master, font=('Arial', 16), text='Modo de segurança', variable=self.seguranca)
         self.rdSeguranca.place(x=300, y=165)
+
 
         self.lblSeguranca = ck.CTkLabel(master, font=('Arial', 12), text='Quando ativo requer uma senha para alterar\n'
                                                                     'configurações, assim como iniciar e parar o '
                                                                     'programa')
         self.lblSeguranca.place(x=300, y=207)
 
-        self.btnSenha = ck.CTkButton(master, font=(fonte, 12), text='Alterar senha', width=50, height=10)
+        self.btnSenha = ck.CTkButton(master, font=(fonte, 12), text='Alterar senha', width=50, height=10, command=self.mudar_senha)
         self.btnSenha.place(x=300, y=247)
 
         self.btnAplicar = ck.CTkButton(master, font=(fonte, 16), text='Aplicar', command=self.get_data)
         self.btnAplicar.place(x=450, y=300)
 
+        self.senha = self.read_data()
+
         self.read_data()
+
+    def mudar_senha(self):
+
+        while True:
+            dialog = ck.CTkInputDialog(text="Insira a senha de administrador para mudar sua senha", title="Mudar Senha")
+            dialog_value = dialog.get_input()
+
+            if not dialog_value:
+                dialog_value.destroy()
+                break
+            elif dialog_value.strip() != self.senha.strip():
+                messagebox.showwarning("Aviso", "Senha Incorreta, contate seu administrador")
+            else:
+                dialog_novo = ck.CTkInputDialog(text="Insira a nova senha", title="Mudar Senha")
+                nova_senha = dialog_novo.get_input()
+
+                with open('configuracoes.txt', 'r') as file:
+                    data = file.readlines()
+
+                data[4] = f"senha = {nova_senha}\n"
+
+                with open('configuracoes.txt', 'w', encoding='utf-8') as file:
+                    file.writelines(data)
+                break
+
+
 
     def get_data(self):
         """
@@ -132,11 +167,13 @@ class PagCofigs:
         """
         teste = self.popupSenha()
 
+
         if teste:
 
             hr_entrada = self.txtEntrada.get("1.0", "end").strip()
             hr_saida = self.txtSaida.get("1.0", "end").strip()
             tolerancia = self.txtTolerancia.get("1.0", "end").strip()
+
             try:
                 tolerancia = int(tolerancia)
             except ValueError:
@@ -153,7 +190,7 @@ class PagCofigs:
                         print(hr_entrada)
                         with open("configuracoes.txt", "w") as file:
                             file.write(f"hora_entrada = {hr_entrada}\nhora_saida = {hr_saida}\ntolerancia = "
-                                       f"{tolerancia}")
+                                       f"{tolerancia}\nmodo_de_seguranca = {self.seguranca.get()}")
                             file.close()
                 else:
                     print("A tolerancia não pode ser maior que 60 minutos ou menor que zero")
@@ -195,6 +232,12 @@ class PagCofigs:
             self.txtSaida.insert("1.0", saida)
             tolerancia = lines[2].split()[2]
             self.txtTolerancia.insert("1.0", tolerancia)
+            seguranca = int(lines[3].split()[2])
+            if seguranca == 1:
+                self.rdSeguranca.select()
+        return senha_geral
+
+
 
     def on_closing(self):
         if messagebox.askyesno(title="Sair?", message="Tem certeza que deseja sair?"):
@@ -211,75 +254,107 @@ class PagIniciar:
         master.bind('<Escape>', lambda e: master.quit())
 
         # Create a label and display it on app
-        lbl_camera = tkinter.Label(master, text='')
-        lbl_camera.pack()
-        face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-        vid = cv2.VideoCapture(0)
-        pessoas = []
+        self.lbl_camera = tkinter.Label(master, text='')
+        self.lbl_camera.pack()
+        self.btn_iniciar = ck.CTkButton(master, text="Iniciar", command= lambda : self.open_camera(stop=False))
+        self.btn_iniciar.pack()
+        self.btn_parar = ck.CTkButton(master, text='Parar', command= lambda :self.open_camera(stop=True))
+        self.btn_parar.pack()
+        self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+        self.vid = cv2.VideoCapture(0)
+        importar_tabela_db('chamada', conexao)
 
-        def open_camera():
-            # converte o último frame em imagem
-            cv2image = cv2.cvtColor(vid.read()[1], cv2.COLOR_BGR2RGB)
-            cv2image = cv2.flip(cv2image, 1)
-            gray = cv2.cvtColor(cv2image, cv2.COLOR_BGR2GRAY)
-            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        self.pessoas = []
 
-            # diminui a imagem para 1/4 para agilizar o processo
-            imgS = cv2.resize(cv2image, (0, 0), None, 0.25, 0.25)
+    def open_camera(self, stop=False):
 
-            for (x, y, w, h) in faces:
-                cv2.rectangle(cv2image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-            img = Image.fromarray(cv2image)
-            # conversão de imagem
-            imgtk = ImageTk.PhotoImage(image=img)
-            lbl_camera.imgtk = imgtk
-            lbl_camera.configure(image=imgtk)
+        # converte o último frame em imagem
 
 
-            # tenta encontrar o rosto atual na lista de encodes da chamada
-            mtnome = find_match(nomes, encodelistConhecido, imgS)
+        cv2image = cv2.cvtColor(self.vid.read()[1], cv2.COLOR_BGR2RGB)
+        cv2image = cv2.flip(cv2image, 1)
+        gray = cv2.cvtColor(cv2image, cv2.COLOR_BGR2GRAY)
+        faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
 
-            if mtnome is not None:
-                pessoas.append(mtnome)
+        # diminui a imagem para 1/4 para agilizar o processo
+        imgS = cv2.resize(cv2image, (0, 0), None, 0.25, 0.25)
 
-            if pessoas.count(mtnome) > 3 and mtnome is not None:
-                MarcarPresenca(mtnome, listaNomes, listaSaiu, listaStatus)
-                img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
-                cv2.imshow('Confirmação', img_reconhecida)
-                # após identificar uma pessoa com sucesso reinicia a lista de rostos
-                pessoas.clear()
+        for (x, y, w, h) in faces:
+            cv2.rectangle(cv2image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        img = Image.fromarray(cv2image)
+        # conversão de imagem
+        imgtk = ImageTk.PhotoImage(image=img)
+        self.lbl_camera.imgtk = imgtk
+        self.lbl_camera.configure(image=imgtk)
+
+        # tenta encontrar o rosto atual na lista de encodes da chamada
+        mtnome = find_match(nomes, encodelistConhecido, imgS)
+        print(mtnome)
+        print(self.pessoas.count(mtnome))
+
+        if mtnome is not None:
+            self.pessoas.append(mtnome)
+
+        if self.pessoas.count(mtnome) > 1 and mtnome is not None:
+            MarcarPresenca(mtnome, listaNomes, listaSaiu, listaStatus, conexao)
+            # carrega a foto de perfil do aluno
+            '''img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
+            img_reconhecida = cv2.cvtColor(img_reconhecida, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(img_reconhecida)
+            imgt = ImageTk.PhotoImage(image=img)
+            self.lbl_camera.imgt = imgt
+            self.lbl_camera.configure(image=imgt)'''
+            # após identificar uma pessoa com sucesso reinicia a lista de rostos
+            self.pessoas.clear()
 
 
+
+
+        if stop is not True:
             # repete após 20 frames
-            lbl_camera.after(5, open_camera)
-
-        btn_iniciar = ck.CTkButton(master, text="Iniciar", command=open_camera)
-        btn_iniciar.pack()
-        btn_parar = ck.CTkButton(master, text='Parar')
-        btn_parar.pack()
+            self.tk_after = self.master.after(20, lambda: self.open_camera(stop=False))
+        else:
+            self.master.after_cancel(self.tk_after)
+            self.btn_iniciar.configure(text='Retomar', command=lambda: self.open_camera(stop=False))
 
 
-path = '..\imagensChamada'
-images = []
-nomes = []
-lista = os.listdir(path)
 
-# ler cada imagem da lista
-for im in lista:
-    imgAtual = cv2.imread(f'{path}/{im}')
-    images.append(imgAtual)
-    # adiciona o nome da imagem sem o .jpeg
-    nomes.append(os.path.splitext(im)[0])
-print(nomes)
+with cProfile.Profile() as profile:
 
-listaStatus, listaNomes, listaSaiu = ler_chamada()
+    path = '..\imagensChamada'
+    images = []
+    nomes = []
+    lista = os.listdir(path)
 
-hr_entrada, hr_saida, hr_atraso = load_configs()
+    # ler cada imagem da lista
+    for im in lista:
+        imgAtual = cv2.imread(f'{path}/{im}')
+        images.append(imgAtual)
+        # adiciona o nome da imagem sem o .jpeg
+        nomes.append(os.path.splitext(im)[0])
+    print(nomes)
 
-# cria uma lista de encodes das imagens da chamada
-encodelistConhecido = findEncoding(images)
+    listaStatus, listaNomes, listaSaiu = ler_chamada()
 
-root = ck.CTk()
-app = MainPage(root)
-root.mainloop()
+    hr_entrada, hr_saida, hr_atraso, seguranca, senha_geral = load_configs()
+
+    conexao = conectar_db()
+
+    # cria uma lista de encodes das imagens da chamada
+    encodelistConhecido = []
+    with open("../encodes/turma01.csv", 'r') as file:
+        reader = csv.reader(file)
+        for linha in reader:
+            linha = np.array(linha)
+            linhanp = linha.astype(float)
+            encodelistConhecido.append(linhanp)
+    #encodelistConhecido = findEncoding(images)
+
+    root = ck.CTk()
+    app = MainPage(root)
+    root.mainloop()
+    results = pstats.Stats(profile)
+    results.sort_stats(pstats.SortKey.TIME)
+    results.print_stats()
+

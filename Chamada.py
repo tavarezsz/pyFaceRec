@@ -184,6 +184,7 @@ def findEncoding(images):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         encode = face_recognition.face_encodings(image)[0]
         encodeList.append(encode)
+        print(image)
     return encodeList
 
 #lista de todas as imagens conhecidas já convertidas
@@ -192,7 +193,7 @@ encodeListConhecido = findEncoding(images)
 
 cam = cv2.VideoCapture(0)
 count = 0
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+face_cascade = cv2.CascadeClassifier('interface/haarcascade_frontalface_default.xml')
 # lista de todos os rostos que a camera detectar dentro do loop
 rostos = []
 while True:
@@ -211,15 +212,8 @@ while True:
     # Desenha o retangulo no rosto
     for (x, y, w, h) in faces:
         # se for um rosto real desenha o retangulo verde
-        if test(imgS, 'AntiSpoofing/resources/anti_spoof_models', 0) == 1:
-            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            print('real')
-            face_check = True
+        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        else:
-            # se não for um rosto real desnha o retangulo vermelho
-            print('fake')
-            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
     cv2.imshow('Webcam', img)
     cv2.waitKey(1)
@@ -227,12 +221,12 @@ while True:
     mtnome = utils.find_match(nomes, encodeListConhecido, imgS)
 
     # se o rosto atual for real acidiona na lista
-    if face_check:
+    '''if face_check:
         rostos.append(mtnome)
     # se o mesmo rosto for identificado 5 vezes quebra o loop
     if rostos.count(mtnome) > 1000  and mtnome is not None:
-        MarcarPresenca(mtnome)
-        break
+        #MarcarPresenca(mtnome)
+        break'''
 
 
 index_aluno = listaNomes.index(mtnome)
