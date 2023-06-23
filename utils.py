@@ -4,9 +4,12 @@ import numpy as np
 from datetime import datetime, timedelta, date
 import pandas as pd
 import csv
-from multiprocessing import pool
+import multiprocessing
 import mysql.connector
 import os.path
+import cProfile
+import pstats
+import ctypes
 
 
 def conectar_db():
@@ -43,6 +46,8 @@ def remover_linhas_em_branco(nome_arquivo):
 
 
 # cnx = conectar_db()
+
+
 def find_match(name_list, encode_list, img):
     """
         Encontra o rosto atual na lista de chamada
@@ -52,20 +57,25 @@ def find_match(name_list, encode_list, img):
     :return: retorna o nome do aluno no frame atual
     """
     match = 'desconhecido'
+    with cProfile.Profile() as profile:
 
-    facesFrameAtt = face_recognition.face_locations(img)
-    encodesFrameAtt = face_recognition.face_encodings(img, facesFrameAtt)
+        facesFrameAtt = face_recognition.face_locations(img)
+        encodesFrameAtt = face_recognition.face_encodings(img, facesFrameAtt)
 
-    for encodeFace, faceLoc in zip(encodesFrameAtt, facesFrameAtt):
-        matches = face_recognition.compare_faces(encode_list, encodeFace)
-        faceDis = face_recognition.face_distance(encode_list, encodeFace)
-        print(faceDis)
-        matchIndex = np.argmin(faceDis)
+        for encodeFace, faceLoc in zip(encodesFrameAtt, facesFrameAtt):
+            matches = face_recognition.compare_faces(encode_list, encodeFace)
+            faceDis = face_recognition.face_distance(encode_list, encodeFace)
+            print(faceDis)
+            matchIndex = np.argmin(faceDis)
 
-        if matches[matchIndex]:
-            match = name_list[matchIndex].upper()
-        # se o mesmo rosto for identificado 4 vezes quebra o loop
-        return match
+            if matches[matchIndex]:
+                match = name_list[matchIndex].upper()
+        results = pstats.Stats(profile)
+        results.sort_stats(pstats.SortKey.TIME)
+        results.print_stats()
+    return match
+
+
 
 
 def load_configs():
@@ -108,7 +118,8 @@ def AtualizarStatus(nome, listaNomes, listaStatus, conexao):
     :return:
     """
 
-    importar_tabela_db('chamada',conexao)
+    importar_tabela_db('chamada', conexao)
+    # listaStatus, listaNomes, _ = ler_chamada()
 
     pds = pd.read_csv("../listaChamada.csv")
     nome_index = listaNomes.index(nome) - 1
@@ -121,11 +132,12 @@ def AtualizarStatus(nome, listaNomes, listaStatus, conexao):
     elif status[1] == 3:
         msg = 'presente'
 
-    atualizar_presenca_db('chamada', conexao, nome)
+
 
     with open('../listaChamada.csv', 'a') as file:
         pds.loc[nome_index, 'status'] = msg
         pds.to_csv("../listaChamada.csv", index=False)
+    atualizar_presenca_db('chamada', conexao, nome)
     file.close()
 
 
@@ -189,7 +201,7 @@ def importar_tabela_db(tabela, conexao):
     cursor.close()
 
 
-def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus, conexao):
+def MarcarPresenca(nome, conexao):
     """
     Marca a presença e o horário de entrada do aluno no arquivo "listaChamada.csv", assim como horario de saida se já
     estiver presente na chamada
@@ -210,6 +222,7 @@ def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus, conexao):
     presenca = []
 
     with open('../listaChamada.csv', 'a') as file:
+        listaStatus, listaNomes, listaSaiu = ler_chamada()
         if nome not in listaNomes and not None:
 
             presenca = [nome, 0]
@@ -217,7 +230,7 @@ def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus, conexao):
             dtString = n.strftime('%H:%M:%S')
             # se a hora atual passar da entrada + atraso:
             if hr_atraso < n < saida:
-                file.writelines(f'\n{nome}, {dtString}, - , -')
+                file.writelines(f'\n{nome}, {dtString}, - , -') #c
                 listaNomes.append(nome)
                 presenca[1] += 1
 
@@ -235,10 +248,11 @@ def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus, conexao):
             file.close()
             inserir_presenca_db('chamada', conexao, nome)
         elif nome not in listaSaiu and n >= saida:
+
             dtString = n.strftime('%H:%M:%S')
 
             nome_index = listaNomes.index(nome) - 1
-            presenca = [nome, listaStatus[nome_index][0]] #carregar listaStatus
+            presenca = [nome, listaStatus[nome_index][1]]
 
             # adiciona o hr de saida na coluna saida com pandas
             chamadapd.loc[nome_index, 'saida'] = dtString
@@ -253,8 +267,8 @@ def MarcarPresenca(nome, listaNomes, listaSaiu, listaStatus, conexao):
                 else:
                     listaStatus.append(presenca)
 
-            if len(listaNomes) > 1:
-                AtualizarStatus(nome, listaNomes, listaStatus, conexao)
+    if len(listaNomes) > 1:
+        AtualizarStatus(nome, listaNomes, listaStatus, conexao)
 
 
 def ler_chamada():
@@ -336,8 +350,8 @@ def atualizar_presenca_db(tabela, conexao, aluno):
     cursor = conn.cursor(buffered=True)
     data = date.today()
     hoje = data.strftime("%d/%m/%Y")
-    remover_linhas_em_branco('listaChamada.csv')
-    with open('listaChamada.csv', 'r') as csv_file:
+    remover_linhas_em_branco('../listaChamada.csv')
+    with open('../listaChamada.csv', 'r') as csv_file:
         # Criar um leitor de CSV
         csv_reader = csv.reader(csv_file)
 
@@ -357,7 +371,7 @@ def atualizar_presenca_db(tabela, conexao, aluno):
 
         # Confirmar as alterações
         conn.commit()
-        atualizar_presenca_db('chamada', conexao, aluno)
+        # atualizar_presenca_db('chamada', conexao, aluno)
         importar_tabela_db('chamada', conexao)
     csv_file.close()
 

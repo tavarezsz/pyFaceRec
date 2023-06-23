@@ -10,6 +10,7 @@ import customtkinter as ck
 from utils import *
 from time import sleep
 import os
+import argparse
 
 ck.set_appearance_mode("Dark")
 ck.set_default_color_theme("blue")
@@ -265,12 +266,17 @@ class PagIniciar:
         importar_tabela_db('chamada', conexao)
 
         self.pessoas = []
+        # variavel para performance
+        self.process_this = True
+
 
     def open_camera(self, stop=False):
 
+        now = datetime.now().time()
+
+        lStatus , lNomes, lSaiu = ler_chamada()
+
         # converte o último frame em imagem
-
-
         cv2image = cv2.cvtColor(self.vid.read()[1], cv2.COLOR_BGR2RGB)
         cv2image = cv2.flip(cv2image, 1)
         gray = cv2.cvtColor(cv2image, cv2.COLOR_BGR2GRAY)
@@ -293,23 +299,38 @@ class PagIniciar:
         print(mtnome)
         print(self.pessoas.count(mtnome))
 
-        if mtnome is not None:
+        if mtnome != 'desconhecido' and None:
             self.pessoas.append(mtnome)
 
-        if self.pessoas.count(mtnome) > 1 and mtnome is not None:
-            MarcarPresenca(mtnome, listaNomes, listaSaiu, listaStatus, conexao)
-            # carrega a foto de perfil do aluno
-            '''img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
-            img_reconhecida = cv2.cvtColor(img_reconhecida, cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(img_reconhecida)
-            imgt = ImageTk.PhotoImage(image=img)
-            self.lbl_camera.imgt = imgt
-            self.lbl_camera.configure(image=imgt)'''
-            # após identificar uma pessoa com sucesso reinicia a lista de rostos
-            self.pessoas.clear()
+        if self.pessoas.count(mtnome) > 1 and mtnome != 'desconhecido' and None:
+            # atualiza a presença quando o aluno não está na chamada
+            if mtnome not in lNomes:
+                MarcarPresenca(mtnome, conexao)
+                # carrega a foto de perfil do aluno
+                '''img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
+                img_reconhecida = cv2.cvtColor(img_reconhecida, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(img_reconhecida)
+                imgt = ImageTk.PhotoImage(image=img)
+                self.lbl_camera.imgt = imgt
+                self.lbl_camera.configure(image=imgt)'''
+                # após identificar uma pessoa com sucesso reinicia a lista de rostos
+                self.pessoas.clear()
+            # atualiza a presença quando passou do horario de saida e o aluno ainda não saiu
+            elif now > hr_saida and mtnome not in lSaiu:
+                MarcarPresenca(mtnome, conexao)
+                # carrega a foto de perfil do aluno
+                '''img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
+                img_reconhecida = cv2.cvtColor(img_reconhecida, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(img_reconhecida)
+                imgt = ImageTk.PhotoImage(image=img)
+                self.lbl_camera.imgt = imgt
+                self.lbl_camera.configure(image=imgt)'''
+                # após identificar uma pessoa com sucesso reinicia a lista de rostos
+                self.pessoas.clear()
 
 
-
+        # faz com que o sistema processe todos os frames menos esse
+        self.process_this = not self.process_this
 
         if stop is not True:
             # repete após 20 frames
