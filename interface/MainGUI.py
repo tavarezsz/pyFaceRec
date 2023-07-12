@@ -10,7 +10,7 @@ import customtkinter as ck
 from utils import *
 from time import sleep
 import os
-from testeDB import buscar_imagens
+from dbfunc import buscar_imagens
 
 ck.set_appearance_mode("Dark")
 ck.set_default_color_theme("blue")
@@ -255,7 +255,7 @@ class PagCofigs:
                         print(hr_entrada)
                         with open("configuracoes.txt", "w") as file:
                             file.write(f"hora_entrada = {hr_entrada}\nhora_saida = {hr_saida}\ntolerancia = "
-                                       f"{tolerancia}\nmodo_de_seguranca = {self.seguranca.get()}")
+                                       f"{tolerancia}\nmodo_de_seguranca = {self.seguranca.get()}\nsenha = {senha_geral}")
                             file.close()
                 else:
                     print("A tolerancia não pode ser maior que 60 minutos ou menor que zero")
@@ -318,7 +318,15 @@ class PagIniciar:
         master.title("FaceRecon")
         master.geometry("800x500")
 
-        self.nomes, self.encodelistConhecido = load_encodes('../imagensChamada', 'turma01.csv')
+        print(turma_selecionada)
+        if turma_selecionada == 'turma01':
+            self.turma = 'chamada'
+            self.path_imagens = '../imagensChamada'
+        else:
+            self.path_imagens = '../imagensTurma02'
+            self.turma = 'chamada02'
+
+        self.nomes, self.encodelistConhecido = load_encodes(self.path_imagens, f'{turma_selecionada}.csv')
 
         # bind esq para sair
         master.bind('<Escape>', lambda e: master.quit())
@@ -341,11 +349,6 @@ class PagIniciar:
         self.process_this = True
         self.count = 0
         self.nomes_chegaram = []
-        print(turma_selecionada)
-        if turma_selecionada == 'turma01':
-            self.turma = 'chamada'
-        else:
-            self.turma = 'chamada02'
 
     def message(self, msg):
         window = ck.CTkToplevel(self.master)
@@ -399,16 +402,9 @@ class PagIniciar:
         if self.pessoas.count(mtnome) > 1 and mtnome != 'desconhecido' and mtnome is not None:
             # atualiza a presença quando o aluno não está na chamada
             if mtnome not in self.nomes_chegaram and now > hr_entrada:
-                '''img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
-                img_reconhecida = cv2.cvtColor(img_reconhecida, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(img_reconhecida)
-                imgt = ImageTk.PhotoImage(image=img)
-                self.lbl_camera.imgt = imgt
-                self.lbl_camera.configure(image=imgt)
-                self.lbl_camera.after_idle(time.sleep, 2)'''
                 self.label.configure(text=f'Último Aluno: {mtnome}')
                 MarcarPresenca(mtnome, conexao, self.turma)
-                self.message(f'Bem-Vindo {mtnome}')
+                self.message(f'Bem-Vindo {mtnome}!')
 
 
                 # após identificar uma pessoa com sucesso reinicia a lista de rostos
@@ -418,14 +414,10 @@ class PagIniciar:
 
             # atualiza a presença quando passou do horario de saida e o aluno ainda não saiu
             elif now > hr_saida and mtnome not in lSaiu and mtnome is not None:
-                MarcarPresenca(mtnome, conexao, 'chamada')
-                # carrega a foto de perfil do aluno
-                img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
-                img_reconhecida = cv2.cvtColor(img_reconhecida, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(img_reconhecida)
-                imgt = ImageTk.PhotoImage(image=img)
-                self.lbl_camera.imgt = imgt
-                self.lbl_camera.configure(image=imgt)
+                MarcarPresenca(mtnome, conexao, self.turma)
+                self.message(f'Até mais {mtnome}!')
+                self.label.configure(text=f'Último aluno a sair: {mtnome}')
+
                 # após identificar uma pessoa com sucesso reinicia a lista de rostos
                 self.pessoas.clear()
 
@@ -472,19 +464,13 @@ def load_encodes(path, file_name):
     return nomes,  encodelistConhecido
 
 
+listaStatus, listaNomes, listaSaiu = ler_chamada()
 
-with cProfile.Profile() as profile:
+hr_entrada, hr_saida, hr_atraso, seguranca, senha_geral = load_configs()
 
-    listaStatus, listaNomes, listaSaiu = ler_chamada()
+conexao = conectar_db()
 
-    hr_entrada, hr_saida, hr_atraso, seguranca, senha_geral = load_configs()
+root = ck.CTk()
+app = MainPage(root)
+root.mainloop()
 
-    conexao = conectar_db()
-
-    root = ck.CTk()
-    app = MainPage(root)
-    root.mainloop()
-''' results = pstats.Stats(profile)
-results.sort_stats(pstats.SortKey.TIME)
-results.print_stats()
-'''

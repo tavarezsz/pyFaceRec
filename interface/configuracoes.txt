@@ -1,5 +1,5 @@
-hora_entrada = 16:46:00
+hora_entrada = 19:31:00
 hora_saida = 22:00:00
-tolerancia = 10
-modo_de_seguranca = 1
+tolerancia = 1
+modo_de_seguranca = 0
 senha = senha

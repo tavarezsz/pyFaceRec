@@ -1,7 +1,7 @@
 from utils import *
 import os
 
-path = '../teste'
+path = '../imagensChamada'
 lista = os.listdir(path)
 images = []
 nomes = []
@@ -13,14 +13,4 @@ for im in lista:
     nomes.append(os.path.splitext(im)[0])
 print(nomes)
 
-#create_encode_file(images, 'turma02')
-#tt = findEncoding(images)
-
-#conn = conectar_db()
-
-# atualizar_presenca_db('chamada02', conn, 'EDUARDO')
-
-#findEncoding()
-conn = conectar_db()
-
-abrir_chamada('turma01', ler_chamada(), conn)
+create_encode_file(images, 'turma01')

@@ -65,14 +65,12 @@ def find_match(name_list, encode_list, img):
     for encodeFace, faceLoc in zip(encodesFrameAtt, facesFrameAtt):
         matches = face_recognition.compare_faces(encode_list, encodeFace)
         faceDis = face_recognition.face_distance(encode_list, encodeFace)
-        print(faceDis)
         matchIndex = np.argmin(faceDis)
 
         if matches[matchIndex] and faceDis[matchIndex] < 0.5:
-            match = name_list[matchIndex].upper()
+            match = name_list[matchIndex].lower()
 
             return match
-
 
 
 

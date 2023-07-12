@@ -1,42 +1,20 @@
 import mysql.connector
-import pandas as pd
-import datetime
 import base64
-from PIL import Image
-import io
+from cryptography.fernet import Fernet
 import os
 
-'''
-config = {
-  'user': 'admin',
-  'password': 'facerecon1234',
-  'host': 'mysqlserver.cvhmu0h9hdef.us-east-2.rds.amazonaws.com',
-  'database': 'facereconDB'
-}
 
-conn = mysql.connector.connect(**config)
 
-cursor = conn.cursor(buffered=True)
+chave = b'D2UfMEE158hqPSVVrkGTql59yfIolwjwcC0tvL8FxeM='
 
-cursor.execute("SELECT * FROM `turma01`")
+def criptografar_dados(dados):
+    f = Fernet(chave)
+    return f.encrypt(dados)
 
-resultados = cursor.fetchall()
+def descriptografar_dados(dados_criptografados):
+    f = Fernet(chave)
+    return f.decrypt(dados_criptografados)
 
-# Iterando sobre os resultados
-for linha in resultados:
-    img = linha[2]
-    binary_data = base64.b64decode(img)
-
-    # Convert the bytes into a PIL image
-    image = Image.open(io.BytesIO(binary_data))
-
-    # Display the image
-    image.show()
-    print(img)
-'''
-import mysql.connector
-
-import mysql.connector
 
 def inserir_imagem(caminho_imagem,nome):
     # Estabelecer conexão com o banco de dados
@@ -51,6 +29,8 @@ def inserir_imagem(caminho_imagem,nome):
     with open(caminho_imagem, 'rb') as arquivo_imagem:
         imagem_binaria = arquivo_imagem.read()
 
+    imagem_criptografada = criptografar_dados(imagem_binaria)
+    imagem_base64 = base64.b64encode(imagem_criptografada)
 
     try:
         # Criar um cursor para executar as consultas SQL
@@ -59,7 +39,7 @@ def inserir_imagem(caminho_imagem,nome):
 
         # Inserir a imagem no banco de dados
         consulta = f"UPDATE turma01 SET foto = %s WHERE nome = '{nome}'"
-        dados = (imagem_binaria,)
+        dados = (imagem_base64.decode(),)
         cursor.execute(consulta, dados)
 
         # Confirmar as alterações
@@ -99,12 +79,15 @@ def buscar_imagens(diretorio_destino, tabela):
         # Percorrer os resultados da consulta
         for indice, resultado in enumerate(cursor):
             nome = resultado[0]
-            imagem_binaria = resultado[1]
+            imagem_base64 = resultado[1]
+
+            imagem_criptografada = base64.b64decode(imagem_base64)
+            imagem_descriptografada = descriptografar_dados(imagem_criptografada)
 
             # Salvar a imagem no diretório de destino
             caminho_imagem = os.path.join(diretorio_destino, f"{nome}.jpg")
             with open(caminho_imagem, 'wb') as arquivo_imagem:
-                arquivo_imagem.write(imagem_binaria)
+                arquivo_imagem.write(imagem_descriptografada)
 
         print("Imagens salvas com sucesso!")
 
@@ -119,39 +102,3 @@ def buscar_imagens(diretorio_destino, tabela):
         cursor.close()
         conexao.close()
 
-
-def inserir(entrada, nome_db):
-    chamadapd = pd.read_csv("listaChamada.csv")
-    nome = entrada[0]
-    hr_entrada = entrada[1]
-    saida = entrada[2]
-    status = entrada[3]
-    data =entrada[4]
-    query = "INSERT INTO `chamada` (nome, entrada, saida, status, data) VALUES (%s, %s, %s, %s, %s)"
-    cursor.execute(query, (nome, hr_entrada, saida, status, data))
-    conn.commit()
-
-
-
-'''for i in range(10):
-    nome = input('nome:')
-    hj = datetime.date.today()
-    date = hj.strftime("%d/%m/%Y")
-    teste = [f'{nome}', '19:14:00', '22:09:45', 'presente', date]
-    inserir(teste, 'chamada')
-    print(nome)'''
-
-'''results = cursor.fetchall()
-    
-for row in results:
-    print(row)'''
-
-#gerar_chave()
-
-#inserir_imagem('imagensChamada\\joao.jpg', 'joão')
-#buscar_imagens('imagensturma03', 'turma01')/
-
-
-'''cursor.close()
-conn.close()
-'''
