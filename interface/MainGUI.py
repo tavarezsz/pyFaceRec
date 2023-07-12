@@ -10,11 +10,10 @@ import customtkinter as ck
 from utils import *
 from time import sleep
 import os
-import argparse
+from testeDB import buscar_imagens
 
 ck.set_appearance_mode("Dark")
 ck.set_default_color_theme("blue")
-
 
 class MainPage:
     def __init__(self, master):
@@ -25,13 +24,72 @@ class MainPage:
         self.label = ck.CTkLabel(master, text="FaceRecon", font=('Arial', 20))
         self.label.pack(padx=20, pady=25)
 
+        self.cbTurmas = ck.CTkComboBox(master, values=self.ler_turmas(), state='readonly')
+        self.cbTurmas.pack()
+        self.cbTurmas.set("Selecione a turma")
+
         self.btnIniciar = ck.CTkButton(master, text="Iniciar", font=('Arial', 16), command=self.openIniciar)
         self.btnIniciar.pack(padx=20, pady=25)
 
         self.btnConfiguracoes = ck.CTkButton(master, text="Configurações", font=('Arial', 16), command=self.openConfigs)
         self.btnConfiguracoes.pack(padx=20, pady=0)
 
+        self.btnCarregarTurma = ck.CTkButton(master, text="Carregar nova turma", font=('Arial', 16), command=self.carregar_turma)
+        self.btnCarregarTurma.pack(pady=20)
+
         master.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def message(self):
+        window = ck.CTkToplevel(self.master)
+        window.title('Bem-vindo Eduardo!!!')
+        window.grab_set()
+        window.after(3000, lambda: window.destroy())
+
+
+    def ler_turmas(self):
+        """
+        le o nome dos arquivos da pasta encodes e coloca como opções do combo box
+        :return: retorna lista com os nomes dos arquivos
+        """
+        turmas = [os.path.splitext(f)[0] for f in os.listdir("../encodes")]
+
+        return turmas
+
+
+    def carregar_turma(self):
+
+        turmas = self.ler_turmas()
+        dialog_turma = ck.CTkInputDialog(text="Insira o nome da turma",
+                                        title="Atenção")
+        #turma = dialog_turma.get_input()
+        turma = 'hentor'
+        input_turma = dialog_turma.get_input()
+
+        if turma in turmas:
+           warning = messagebox.showwarning('Aviso', f"A turma {turma} já esta cadastrada, deseja subscreve-la?")
+           if warning:
+               dialog_turma = ck.CTkInputDialog(text="Insira o nome da turma(deve estar cadastrada no banco)", title="Atenção")
+               input_turma = dialog_turma.get_input()
+               if os.path.exists(f'../imagens{turma}'):
+                   pass
+                   #create_encode_file(turma)
+                    #read_image_lista(turma)
+        else:
+
+           dialog_tabela = ck.CTkInputDialog(text="Insira o nome da turma em banco(precisa estar cadastrado)",
+                                            title="Atenção")
+           tabela = dialog_tabela.get_input()
+           buscar_imagens(f'../imagens{input_turma}', tabela)
+           imagens = ler_lista_imagens(f'../imagens{input_turma}')
+           dialog_nome = ck.CTkInputDialog(text="Digite um nome para o cadastro da turma no app",
+                                            title="Atenção")
+           input_nome = dialog_nome.get_input()
+           create_encode_file(imagens, input_nome.lower())
+
+           messagebox.showinfo('Sucesso')
+           self.cbTurmas.configure(values=self.ler_turmas())
+
+
 
     def popupSenha(self):
 
@@ -58,9 +116,16 @@ class MainPage:
         self.newWindow.grab_set()
 
     def openIniciar(self):
-        self.iniciar = ck.CTkToplevel(self.master)
-        self.app2 = PagIniciar(self.iniciar)
-        self.iniciar.grab_set()
+        global turma_selecionada
+
+        turma_selecionada = self.cbTurmas.get()
+        if turma_selecionada == 'Selecione a turma':
+            warning = messagebox.showwarning('Aviso', 'Selecione uma turma!')
+        else:
+            self.iniciar = ck.CTkToplevel(self.master)
+
+            self.app2 = PagIniciar(self.iniciar)
+            self.iniciar.grab_set()
 
     def show_message(self):
         pass
@@ -90,8 +155,8 @@ class PagCofigs:
         self.txtEntrada.place(x=150, y=45)
 
         self.lblEntradaDisc = ck.CTkLabel(master, font=('Arial', 12), text='Define a partir de que horário o sistema '
-                                                                      'começa\na contabilizar a '
-                                                                      'entrada do aluno', pady=10)
+                                                                           'começa\na contabilizar a '
+                                                                           'entrada do aluno', pady=10)
         self.lblEntradaDisc.place(x=5, y=75)
 
         self.lblSaida = ck.CTkLabel(master, font=('Arial', 16), text='Horario de saída:', padx=5)
@@ -100,8 +165,9 @@ class PagCofigs:
         self.txtSaida = ck.CTkTextbox(master, width=100, height=10, fg_color='grey')
         self.txtSaida.place(x=430, y=45)
 
-        self.lblSaidaDisc = ck.CTkLabel(master, font=('Arial', 12), text='Define a partir de que horário o sistema começa\n'
-                                                                    'a contabilizar a saída do aluno', pady=10)
+        self.lblSaidaDisc = ck.CTkLabel(master, font=('Arial', 12),
+                                        text='Define a partir de que horário o sistema começa\n'
+                                             'a contabilizar a saída do aluno', pady=10)
         self.lblSaidaDisc.place(x=300, y=75)
 
         self.lblTolerancia = ck.CTkLabel(master, font=('Arial', 16), text='Tolerancia de Entrada:', padx=5)
@@ -110,21 +176,22 @@ class PagCofigs:
         self.txtTolerancia = ck.CTkTextbox(master, width=100, height=10, fg_color='grey')
         self.txtTolerancia.place(x=175, y=165)
 
-        self.lblToleranciaDisc = ck.CTkLabel(master, font=('Arial', 12), text='Define até quantos minutos após o horário de '
-                                                                         'entrada\n o aluno pode chegar sem receber '
-                                                                         'atraso', pady=10)
+        self.lblToleranciaDisc = ck.CTkLabel(master, font=('Arial', 12),
+                                             text='Define até quantos minutos após o horário de '
+                                                  'entrada\n o aluno pode chegar sem receber '
+                                                  'atraso', pady=10)
         self.lblToleranciaDisc.place(x=5, y=200)
 
         self.rdSeguranca = ck.CTkCheckBox(master, font=('Arial', 16), text='Modo de segurança', variable=self.seguranca)
         self.rdSeguranca.place(x=300, y=165)
 
-
         self.lblSeguranca = ck.CTkLabel(master, font=('Arial', 12), text='Quando ativo requer uma senha para alterar\n'
-                                                                    'configurações, assim como iniciar e parar o '
-                                                                    'programa')
+                                                                         'configurações, assim como iniciar e parar o '
+                                                                         'programa')
         self.lblSeguranca.place(x=300, y=207)
 
-        self.btnSenha = ck.CTkButton(master, font=(fonte, 12), text='Alterar senha', width=50, height=10, command=self.mudar_senha)
+        self.btnSenha = ck.CTkButton(master, font=(fonte, 12), text='Alterar senha', width=50, height=10,
+                                     command=self.mudar_senha)
         self.btnSenha.place(x=300, y=247)
 
         self.btnAplicar = ck.CTkButton(master, font=(fonte, 16), text='Aplicar', command=self.get_data)
@@ -158,8 +225,6 @@ class PagCofigs:
                     file.writelines(data)
                 break
 
-
-
     def get_data(self):
         """
         Converte as strings de tempo em datetime e salva no arquivo "configuracoes.txt"
@@ -167,7 +232,6 @@ class PagCofigs:
         :return:
         """
         teste = self.popupSenha()
-
 
         if teste:
 
@@ -226,6 +290,11 @@ class PagCofigs:
         with open("configuracoes.txt", 'r') as file:
             lines = [line.rstrip() for line in file]
 
+            #limpa os campos
+            self.txtEntrada.delete("1.0", 'end')
+            self.txtSaida.delete("1.0", 'end')
+            self.txtTolerancia.delete("1.0", 'end')
+
             # pega só o horario da linha 1
             entrada = lines[0].split()[2]
             self.txtEntrada.insert("1.0", entrada)
@@ -238,8 +307,6 @@ class PagCofigs:
                 self.rdSeguranca.select()
         return senha_geral
 
-
-
     def on_closing(self):
         if messagebox.askyesno(title="Sair?", message="Tem certeza que deseja sair?"):
             self.master.destroy()
@@ -251,34 +318,55 @@ class PagIniciar:
         master.title("FaceRecon")
         master.geometry("800x500")
 
-        #bind esq para sair
+        self.nomes, self.encodelistConhecido = load_encodes('../imagensChamada', 'turma01.csv')
+
+        # bind esq para sair
         master.bind('<Escape>', lambda e: master.quit())
 
         # Create a label and display it on app
+        self.label = ck.CTkLabel(master, text='')
+        self.label.pack()
         self.lbl_camera = tkinter.Label(master, text='')
         self.lbl_camera.pack()
-        self.btn_iniciar = ck.CTkButton(master, text="Iniciar", command= lambda : self.open_camera(stop=False))
+        self.btn_iniciar = ck.CTkButton(master, text="Iniciar", command=lambda: self.open_camera(stop=False))
         self.btn_iniciar.pack()
-        self.btn_parar = ck.CTkButton(master, text='Parar', command= lambda :self.open_camera(stop=True))
+        self.btn_parar = ck.CTkButton(master, text='Parar', command=lambda: self.open_camera(stop=True))
         self.btn_parar.pack()
         self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
         self.vid = cv2.VideoCapture(0)
-        importar_tabela_db('chamada', conexao)
+        #importar_tabela_db('chamada', conexao)
 
         self.pessoas = []
         # variavel para performance
         self.process_this = True
+        self.count = 0
+        self.nomes_chegaram = []
+        print(turma_selecionada)
+        if turma_selecionada == 'turma01':
+            self.turma = 'chamada'
+        else:
+            self.turma = 'chamada02'
+
+    def message(self, msg):
+        window = ck.CTkToplevel(self.master)
+        window.title('Confirmação')
+        window.geometry("300x100")
+        lbl = ck.CTkLabel(window, text=msg)
+        lbl.pack()
+        window.grab_set()
+        window.after(2000, lambda: window.destroy())
 
 
     def open_camera(self, stop=False):
 
         now = datetime.now().time()
 
-        lStatus , lNomes, lSaiu = ler_chamada()
+        lStatus, lNomes, lSaiu = ler_chamada()
 
         # converte o último frame em imagem
         cv2image = cv2.cvtColor(self.vid.read()[1], cv2.COLOR_BGR2RGB)
         cv2image = cv2.flip(cv2image, 1)
+        cv2image = cv2.resize(cv2image,(0,0), None, 1.5, 1.5)
         gray = cv2.cvtColor(cv2image, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
 
@@ -295,55 +383,74 @@ class PagIniciar:
         self.lbl_camera.configure(image=imgtk)
 
         # tenta encontrar o rosto atual na lista de encodes da chamada
-        mtnome = find_match(nomes, encodelistConhecido, imgS)
-        print(mtnome)
-        print(self.pessoas.count(mtnome))
+        mtnome = None
 
-        if mtnome != 'desconhecido' and None:
+        #processa a imagem a cada 5 frames para otimizar performance
+        if self.count % 5 == 0:
+            pass
+            mtnome = find_match(self.nomes, self.encodelistConhecido, imgS)
+            print(mtnome)
+        else:
+            mtnome = None
+
+        if mtnome != 'desconhecido' and not None:
             self.pessoas.append(mtnome)
 
-        if self.pessoas.count(mtnome) > 1 and mtnome != 'desconhecido' and None:
+        if self.pessoas.count(mtnome) > 1 and mtnome != 'desconhecido' and mtnome is not None:
             # atualiza a presença quando o aluno não está na chamada
-            if mtnome not in lNomes:
-                MarcarPresenca(mtnome, conexao)
-                # carrega a foto de perfil do aluno
+            if mtnome not in self.nomes_chegaram and now > hr_entrada:
                 '''img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
                 img_reconhecida = cv2.cvtColor(img_reconhecida, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(img_reconhecida)
                 imgt = ImageTk.PhotoImage(image=img)
                 self.lbl_camera.imgt = imgt
-                self.lbl_camera.configure(image=imgt)'''
+                self.lbl_camera.configure(image=imgt)
+                self.lbl_camera.after_idle(time.sleep, 2)'''
+                self.label.configure(text=f'Último Aluno: {mtnome}')
+                MarcarPresenca(mtnome, conexao, self.turma)
+                self.message(f'Bem-Vindo {mtnome}')
+
+
                 # após identificar uma pessoa com sucesso reinicia a lista de rostos
                 self.pessoas.clear()
+                self.nomes_chegaram.append(mtnome)
+
+
             # atualiza a presença quando passou do horario de saida e o aluno ainda não saiu
-            elif now > hr_saida and mtnome not in lSaiu:
-                MarcarPresenca(mtnome, conexao)
+            elif now > hr_saida and mtnome not in lSaiu and mtnome is not None:
+                MarcarPresenca(mtnome, conexao, 'chamada')
                 # carrega a foto de perfil do aluno
-                '''img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
+                img_reconhecida = cv2.imread(f"../imagensChamada/{mtnome}.jpg")
                 img_reconhecida = cv2.cvtColor(img_reconhecida, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(img_reconhecida)
                 imgt = ImageTk.PhotoImage(image=img)
                 self.lbl_camera.imgt = imgt
-                self.lbl_camera.configure(image=imgt)'''
+                self.lbl_camera.configure(image=imgt)
                 # após identificar uma pessoa com sucesso reinicia a lista de rostos
                 self.pessoas.clear()
 
-
-        # faz com que o sistema processe todos os frames menos esse
-        self.process_this = not self.process_this
+        self.count += 1
 
         if stop is not True:
-            # repete após 20 frames
-            self.tk_after = self.master.after(20, lambda: self.open_camera(stop=False))
+            self.tk_after = self.master.after(1, lambda: self.open_camera(stop=False))
         else:
             self.master.after_cancel(self.tk_after)
             self.btn_iniciar.configure(text='Retomar', command=lambda: self.open_camera(stop=False))
 
 
+def ler_lista_imagens(path):
+    images = []
+    lista = os.listdir(path)
 
-with cProfile.Profile() as profile:
+    # ler cada imagem da lista
+    for im in lista:
+        imgAtual = cv2.imread(f'{path}/{im}')
+        images.append(imgAtual)
+    return images
 
-    path = '..\imagensChamada'
+
+
+def load_encodes(path, file_name):
     images = []
     nomes = []
     lista = os.listdir(path)
@@ -354,7 +461,19 @@ with cProfile.Profile() as profile:
         images.append(imgAtual)
         # adiciona o nome da imagem sem o .jpeg
         nomes.append(os.path.splitext(im)[0])
-    print(nomes)
+    # cria uma lista de encodes das imagens da chamada
+    encodelistConhecido = []
+    with open(f"../encodes/{file_name}", 'r') as file:
+        reader = csv.reader(file)
+        for linha in reader:
+            linha = np.array(linha)
+            linhanp = linha.astype(float)
+            encodelistConhecido.append(linhanp)
+    return nomes,  encodelistConhecido
+
+
+
+with cProfile.Profile() as profile:
 
     listaStatus, listaNomes, listaSaiu = ler_chamada()
 
@@ -362,20 +481,10 @@ with cProfile.Profile() as profile:
 
     conexao = conectar_db()
 
-    # cria uma lista de encodes das imagens da chamada
-    encodelistConhecido = []
-    with open("../encodes/turma01.csv", 'r') as file:
-        reader = csv.reader(file)
-        for linha in reader:
-            linha = np.array(linha)
-            linhanp = linha.astype(float)
-            encodelistConhecido.append(linhanp)
-    #encodelistConhecido = findEncoding(images)
-
     root = ck.CTk()
     app = MainPage(root)
     root.mainloop()
-    results = pstats.Stats(profile)
-    results.sort_stats(pstats.SortKey.TIME)
-    results.print_stats()
-
+''' results = pstats.Stats(profile)
+results.sort_stats(pstats.SortKey.TIME)
+results.print_stats()
+'''

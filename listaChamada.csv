@@ -1,6 +1,11 @@
 nome,entrada,saida,status
-leandro,10:10:10,00:00:00,Presente(Parcial)
-Marcio,08:08:08,00:00:00,Presente
-Carlos,12:12:12,14:00:60,Presente
-desconhecido, - , - ,presente(atraso)
-EDUARDO, 00:07:56, - ,presente(parcial)
+joão,,,
+ANA, 21:42:22, - ,presente(atraso)
+andré,,,
+jaime,,,
+jessica,,,
+angelo,,,ausente
+angelina,,,ausente
+vinicius,20:00:00,,presente(atraso)
+EDUARDO, 10:50:22, - ,presente(parcial)
+ANA, 21:42:22, - ,presente(atraso)
