@@ -14,10 +14,10 @@ import ctypes
 
 def conectar_db():
     config = {
-        'user': 'admin',
-        'password': 'facerecon1234',
-        'host': 'mysqlserver.cvhmu0h9hdef.us-east-2.rds.amazonaws.com',
-        'database': 'facereconDB'
+        'user': 'root',
+        'password': 'senha1234',
+        'host': 'localhost',
+        'database': 'sys'
     }
 
     conn = mysql.connector.connect(**config)
@@ -65,14 +65,12 @@ def find_match(name_list, encode_list, img):
     for encodeFace, faceLoc in zip(encodesFrameAtt, facesFrameAtt):
         matches = face_recognition.compare_faces(encode_list, encodeFace)
         faceDis = face_recognition.face_distance(encode_list, encodeFace)
-        print(faceDis)
         matchIndex = np.argmin(faceDis)
 
         if matches[matchIndex] and faceDis[matchIndex] < 0.5:
-            match = name_list[matchIndex].upper()
+            match = name_list[matchIndex].lower()
 
             return match
-
 
 
 
@@ -411,11 +409,14 @@ def atualizar_presenca_db(tabela, conexao, aluno):
 
 
 
-
 def abrir_chamada(tabela_fonte, tabela_destino, conexao):
 
     cursor_fonte = conexao.cursor(buffered=True)
     cursor_destino = conexao.cursor(buffered=True)
+
+    cursor_destino.execute(f"DELETE FROM {tabela_destino} WHERE id > 0")
+    #reseta o auto increment
+    cursor_destino.execute(f"ALTER TABLE {tabela_destino} AUTO_INCREMENT = 1")
 
     query = f"SELECT * FROM `{tabela_fonte}`"
     cursor_fonte.execute(query)
